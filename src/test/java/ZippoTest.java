@@ -1,12 +1,21 @@
+import Model.Location;
+import Model.Place;
 import com.sun.xml.internal.ws.wsdl.writer.document.soap.Body;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.builder.ResponseSpecBuilder;
 import io.restassured.filter.log.LogDetail;
 import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.ResponseSpecification;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import org.testng.asserts.SoftAssert;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import static io.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
 
@@ -184,6 +193,7 @@ public class ZippoTest {
     @BeforeClass
     public void Setup() {
         baseURI = "https://gorest.co.in/public/v1";
+
         requestSpec = new RequestSpecBuilder()
                 .log(LogDetail.URI)
                 .setContentType(ContentType.JSON)
@@ -206,6 +216,134 @@ public class ZippoTest {
                 .then()
                 .spec(responseSpec)
                 ;
+    }
+    @Test
+    public void extractingJsonPath() {
+        String countryName =
+                given()
+                .when()
+                .get("http://api.zippopotam.us/us/90210")
+
+                .then()
+                .extract().path("country")
+                ;
+        System.out.println("countryName = " + countryName);
+        Assert.assertEquals(countryName , "United States");
+    }
+    @Test
+    public void extractingJsonPath2() {
+        String placeName =
+                given()
+                        .when()
+                        .get("http://api.zippopotam.us/us/90210")
+                        .then()
+                        .log().body()
+                        .extract().path("places[0].'place name'")
+                ;
+        System.out.println("placeName = " + placeName);
+        Assert.assertEquals(placeName, "Beverly Hills");
+    }
+    @Test
+    public void extractingJsonPath3() {
+        int limit =
+        given()
+                .when()
+                .get("https://gorest.co.in/public/v1/users")
+                .then()
+                // .log().body()
+                .statusCode(200)
+                .extract().path("meta.pagination.limit")
+                ;
+        System.out.println("limit = " + limit);
+    }
+    @Test
+    public void extractingJsonPath4() {
+        // https://gorest.co.in/public/v1/users dönen değerdeki bütün idleri yazdırınız
+        List<Integer> idList =
+        given()
+                .when()
+                .get("https://gorest.co.in/public/v1/users")
+                .then()
+                //.log().body()
+                .statusCode(200)
+                .extract().path("data.id")
+                ;
+        System.out.println("idList = " + idList);
+    }
+    @Test
+    public void extractingJsonPath5() {
+        // https://gorest.co.in/public/v1/users dönen değerdeki bütün idleri yazdırınız
+        List<String> names =
+                given()
+                        .when()
+                        .get("https://gorest.co.in/public/v1/users")
+                        .then()
+                        //.log().body()
+                        .statusCode(200)
+                        .extract().path("data.name")
+                ;
+        System.out.println("names = " + names);
+    }
+    @Test
+    public void extractingJsonPathResponsAll() {
+        // https://gorest.co.in/public/v1/users dönen değerdeki bütün idleri yazdırınız
+        Response donenData =
+                given()
+                        .when()
+                        .get("https://gorest.co.in/public/v1/users")
+                        .then()
+                        //.log().body()
+                        .statusCode(200)
+                        .extract().response()
+                ;
+        List<Integer> idler = donenData.path("data.id");
+        List<String> names = donenData.path("data.name");
+        int limit = donenData.path("meta.pagination.limit");
+
+        System.out.println("idler = " + idler);
+        System.out.println("names = " + names);
+        System.out.println("limit = " + limit);
+
+        Assert.assertTrue(names.contains("Ms. Kamalesh Dubashi"));
+        Assert.assertTrue(idler.contains(1203756));
+        Assert.assertEquals(limit,10, " test sonucu hatalı");
+    }
+    @Test
+    public void extractJsonAll_POJO() {
+        // POJO : JSON nesnesi demek
+        Location locationNesnesi =
+                given()
+                .when()
+                .get("http://api.zippopotam.us/us/90210")
+                .then()
+                // .log().body()
+                .extract().body().as(Location.class)
+                ;
+        System.out.println("locationNesnesi = " + locationNesnesi.getCountry());
+
+        for (Place p: locationNesnesi.getPlaces())
+            System.out.println("p = " + p);
+
+        System.out.println(locationNesnesi.getPlaces().get(0).getPlacename());
+
+    }
+    @Test
+    public void extractJsonPOJO_Soru() {
+        // aşağıdaki endpointte dörtağaç köyüne ait diğer bilgileri yazdırınız
+       Location adana =
+        given()
+                .when()
+                .get("http://api.zippopotam.us/tr/01000")
+
+                .then()
+                // .log().body()
+                .statusCode(200)
+                .extract().body().as(Location.class)
+                ;
+         for (Place p: adana.getPlaces())
+             if (p.getPlacename().equalsIgnoreCase("Dörtağaç Köyü")) {
+                 System.out.println("p = " + p);
+             }
     }
 }
 
